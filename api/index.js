@@ -4,30 +4,29 @@ const cors = require('cors');
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Enhanced CORS configuration
+app.use(cors({
+  origin: ['https://green-pulse-app.vercel.app/'], // Add your frontend URLs
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
-// MongoDB Connection - use environment variable from Vercel
-const uri = process.env.MONGODB_URI;
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI;
 
 console.log('🔗 Connecting to MongoDB...');
 
-mongoose.connect(uri, {
+mongoose.connect(MONGODB_URI || 'mongodb+srv://preraksiddhpura_db_user:kCVVc5ZH0MoBRwjo@cluster0.xxxxx.mongodb.net/plantDB?retryWrites=true&w=majority', {
   useNewUrlParser: true,
   useUnifiedTopology: true
-});
+})
+.then(() => console.log('✅ MongoDB Connected'))
+.catch(err => console.error('❌ MongoDB Error:', err));
 
-const connection = mongoose.connection;
-connection.once('open', () => {
-  console.log("✅ MongoDB database connection established successfully");
-});
-
-connection.on('error', (err) => {
-  console.error('❌ MongoDB connection error:', err);
-});
-
-// Define a Schema and Model for your data
+// Sensor Data Schema
 const sensorDataSchema = new mongoose.Schema({
   sensorId: String,
   temperature: Number,
@@ -38,19 +37,15 @@ const sensorDataSchema = new mongoose.Schema({
 
 const SensorData = mongoose.model('SensorData', sensorDataSchema);
 
-// Root endpoint
+// Routes
 app.get('/', (req, res) => {
   res.json({ 
-    message: '🌱 Plant Monitor Backend is running!',
-    endpoints: [
-      'POST /api/sensorData - For ESP32 to send data',
-      'GET /api/sensorData - For React app to get data',
-      'GET /api/health - Health check'
-    ]
+    message: '🌱 Plant Monitor API is running!',
+    status: 'OK',
+    timestamp: new Date().toISOString()
   });
 });
 
-// Health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
     const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
@@ -64,32 +59,33 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Create an API endpoint for the ESP32 to POST data to
 app.post('/api/sensorData', async (req, res) => {
   try {
-    console.log('📨 Received sensor data:', req.body);
+    console.log('📨 Received data:', req.body);
     
     const newData = new SensorData(req.body);
     await newData.save();
     
-    console.log('✅ Data saved to MongoDB');
-    res.status(201).json({ message: 'Data saved successfully!' });
+    res.status(201).json({ 
+      message: 'Data saved successfully!',
+      id: newData._id 
+    });
   } catch (error) {
-    console.error('❌ Error saving data:', error);
+    console.error('Error:', error);
     res.status(400).json({ error: error.message });
   }
 });
 
-// Create an API endpoint for the React app to GET data from
 app.get('/api/sensorData', async (req, res) => {
   try {
-    // Get the latest 100 readings, sorted by newest first
-    const data = await SensorData.find().sort({ timestamp: -1 }).limit(100);
+    const data = await SensorData.find().sort({ timestamp: -1 }).limit(50);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Export the app for Vercel
+// Handle preflight requests
+app.options('*', cors());
+
 module.exports = app;
