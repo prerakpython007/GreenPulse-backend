@@ -2,10 +2,10 @@
   "name": "greenpulse-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "api/server.js",
+    "main": "api/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node api/server.js"
+    "dev": "node api/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
